@@ -20,7 +20,7 @@ UnivaPayの申し込み方法
 ### 管理者向け
 
 ```sh
-git clone https://github.com/univapaycast/UnivaPay-for-EC-CUBE42.git
+git clone https://github.com/univapay/UnivaPay-for-EC-CUBE42.git
 cd EC-UnivaPay-for-EC-CUBE42
 cp docker-compose.sample.yml docker-compose.yml
 docker compose up -d
