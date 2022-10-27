@@ -1,87 +1,119 @@
 <?php
 namespace Plugin\UnivaPay;
 
-use Eccube\Event\TemplateEvent;
-use Eccube\Event\EventArgs;
-use Eccube\Event\EccubeEvents;
-use Eccube\Application;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Plugin\UnivaPay\Repository\ConfigRepository;
-use Plugin\UnivaPay\Util\SDK;
+use Eccube\Entity\Payment;
+use Eccube\Plugin\AbstractPluginManager;
+use Plugin\UnivaPay\Entity\Config;
+use Plugin\UnivaPay\Entity\SubscriptionPeriod;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
-class UnivaPayEvent implements EventSubscriberInterface
+class PluginManager extends AbstractPluginManager
 {
-    /** @var ConfigRepository */
-    protected $Config;
-    /**
-     * UnivaPayEvent constructor.
-     *
-     * @param ConfigRepository $configRepository
-     */
-    public function __construct(
-        ConfigRepository $configRepository
-    ) {
-        $this->Config = $configRepository;
-    }
-    /**
-     * リッスンしたいサブスクライバのイベント名の配列を返します。
-     * 配列のキーはイベント名、値は以下のどれかをしてします。
-     * - 呼び出すメソッド名
-     * - 呼び出すメソッド名と優先度の配列
-     * - 呼び出すメソッド名と優先度の配列の配列
-     * 優先度を省略した場合は0
-     *
-     * 例：
-     * - array('eventName' => 'methodName')
-     * - array('eventName' => array('methodName', $priority))
-     * - array('eventName' => array(array('methodName1', $priority), array('methodName2')))
-     *
-     * {@inheritdoc}
-     */
-    public static function getSubscribedEvents()
+    public function enable(array $meta, ContainerInterface $container)
     {
-        return [
-            '@admin/Order/edit.twig' => 'onAdminOrderEditTwig',
-            'Shopping/confirm.twig' => 'onShoppingConfirmTwig',
-            'Mypage/history.twig' => 'onMypageHistoryTwig',
-            '@admin/Product/product.twig' => 'onAdminProductEditTwig',
-            EccubeEvents::FRONT_MYPAGE_WITHDRAW_INDEX_COMPLETE => 'onMypageWithdraw'
-        ];
+        $this->createTokenPayment($container);
+        $this->createSubscriptionPayment($container);
+        $this->createConfig($container);
+        $this->createSubscriptionPeriod($container);
     }
 
-    public function onAdminOrderEditTwig(TemplateEvent $event)
+    private function createTokenPayment(ContainerInterface $container)
     {
-        $event->addSnippet('@UnivaPay/admin/order_edit.twig');
-    }
+        $entityManager = $container->get('doctrine')->getManager();
+        $paymentRepository = $entityManager->getRepository(Payment::class);
 
-    public function onShoppingConfirmTwig(TemplateEvent $event)
-    {
-        $event->addSnippet('@UnivaPay/shopping_confirm.twig');
-    }
+        $Payment = $paymentRepository->findOneBy([], ['sort_no' => 'DESC']);
+        $sortNo = $Payment ? $Payment->getSortNo() + 1 : 1;
 
-    public function onMypageHistoryTwig(TemplateEvent $event) {
-        $event->addSnippet('@UnivaPay/mypage_history.twig');
-    }
-
-    public function onAdminProductEditTwig(TemplateEvent $event)
-    {
-        $event->addSnippet('@UnivaPay/admin/product_edit.twig');
-    }
-
-    public function onMypageWithdraw(EventArgs $event)
-    {
-        $Customer = $event->getArgument('Customer');
-        $subscriptionId = '';
-        $config = $this->Config->findOneById(1);
-        $util = new SDK($config);
-        foreach($Customer->getOrders() as $Order) {
-            $nowSubscription = $Order->getUnivaPaySubscriptionId();
-            if($nowSubscription && $nowSubscription !== $subscriptionId) {
-                $subscriptionId = $nowSubscription;
-                $subscription = $util->getSubscription($subscriptionId);
-                if($subscription && $subscription->status->getValue() === 'current')
-                    $subscription = $subscription->cancel();
-            }
+        $Payment = $paymentRepository->findOneBy(['method_class' => Plugin\UnivaPay\Service\Method\CreditCard::class]);
+        if ($Payment) {
+            return;
         }
+
+        $Payment = new Payment();
+        $Payment->setCharge(0);
+        $Payment->setSortNo($sortNo);
+        $Payment->setVisible(true);
+        $Payment->setMethod('UnivaPay');
+        $Payment->setMethodClass(Plugin\UnivaPay\Service\Method\CreditCard::class);
+
+        $entityManager->persist($Payment);
+        $entityManager->flush($Payment);
+    }
+
+    private function createSubscriptionPayment(ContainerInterface $container)
+    {
+        $entityManager = $container->get('doctrine')->getManager();
+        $paymentRepository = $entityManager->getRepository(Payment::class);
+
+        $Payment = $paymentRepository->findOneBy([], ['sort_no' => 'DESC']);
+        $sortNo = $Payment ? $Payment->getSortNo() + 1 : 1;
+
+        $Payment = $paymentRepository->findOneBy(['method_class' => Plugin\UnivaPay\Service\Method\Subscription::class]);
+        if ($Payment) {
+            return;
+        }
+
+        $Payment = new Payment();
+        $Payment->setCharge(0);
+        $Payment->setSortNo($sortNo);
+        $Payment->setVisible(true);
+        $Payment->setMethod('UnivaPay(Subscription)');
+        $Payment->setMethodClass(Plugin\UnivaPay\Service\Method\Subscription::class);
+
+        $entityManager->persist($Payment);
+        $entityManager->flush($Payment);
+    }
+
+
+    private function createConfig(ContainerInterface $container)
+    {
+        $entityManager = $container->get('doctrine.orm.entity_manager');
+        $Config = $entityManager->find(Config::class, 1);
+        if ($Config) {
+            return;
+        }
+
+        $Config = new Config();
+        $Config->setAppId('');
+        $Config->setAppSecret('');
+        $Config->setWidgetUrl('https://widget.univapay.com');
+        $Config->setApiUrl('https://api.univapay.com');
+        $Config->setCapture(false);
+        $Config->setMail(true);
+
+        $entityManager->persist($Config);
+        $entityManager->flush($Config);
+    }
+
+    private function createMasterData(ContainerInterface $container, array $statuses, $class)
+    {
+        $entityManager = $container->get('doctrine')->getManager();
+        $i = 0;
+        foreach ($statuses as $id => $name) {
+            $PaymentStatus = $entityManager->find($class, $id);
+            if (!$PaymentStatus) {
+                $PaymentStatus = new $class;
+            }
+            $PaymentStatus->setId($id);
+            $PaymentStatus->setName($name);
+            $PaymentStatus->setSortNo($i++);
+            $entityManager->persist($PaymentStatus);
+            $entityManager->flush($PaymentStatus);
+        }
+    }
+
+    private function createSubscriptionPeriod(ContainerInterface $container) {
+        $statuses = [
+            SubscriptionPeriod::DAILY => '毎日',
+            SubscriptionPeriod::WEEKLY => '毎週',
+            SubscriptionPeriod::BIWEEKLY => '隔週',
+            SubscriptionPeriod::MONTHLY => '毎月',
+            SubscriptionPeriod::BIMONTHLY => '隔月',
+            SubscriptionPeriod::QUARTERLY => '3ヶ月',
+            SubscriptionPeriod::SEMIANNUALLY => '6ヶ月',
+            SubscriptionPeriod::ANNUALLY => '毎年',
+        ];
+        $this->createMasterData($container, $statuses, SubscriptionPeriod::class);
     }
 }
