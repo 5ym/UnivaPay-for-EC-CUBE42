@@ -13,11 +13,10 @@
     <script>
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
-        const ret = urlParams.get('ret');
-        if(ret === '0') {
+        const error = urlParams.get('error');
+        if(error === '0') {
             alert("インストールに成功しました。");
-        } else if(ret !== null) {
-            console.log(ret);
+        } else if(error === '1') {
             alert("インストールができませんでした。サーバ内で下記コマンドを実行してください。\nbin/console eccube:composer:require univapay/php-sdk:6.2.1");
         }
     </script>
