@@ -29,7 +29,7 @@ class ConfigController extends AbstractController
      */
     public function __construct(
         ConfigRepository $configRepository,
-        mposerServiceInterface $composerService
+        ComposerServiceInterface $composerService
     ) {
         $this->configRepository = $configRepository;
         $this->composerService = $composerService;
