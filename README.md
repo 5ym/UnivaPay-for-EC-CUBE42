@@ -1,7 +1,7 @@
 # UnivaPay-for-EC-CUBE42
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
-EC-CUBE4.2用のUnivaPay導入プラグイン  
+EC-CUBE用のUnivaPay導入プラグイン  
 UnivaPayの申し込み方法  
 <https://www.univapay.com/service/credit/#12>  
 最新のリリースは下記から  
@@ -9,31 +9,29 @@ UnivaPayの申し込み方法
 
 ## 開発環境
 
-### 一般向け
-
-1. 下記を参照にEC-CUBEを構築してください。  
-<https://github.com/EC-CUBE/ec-cube>
-2. EC-CUBE管理画面よりプラグインをインストール
-3. プラグインの設定画面よりSDKをインストール
-
-### 管理者向け
+vscode devcontainerを利用しています。
 
 ```sh
 git clone https://github.com/univapay/UnivaPay-for-EC-CUBE42.git
-cd EC-UnivaPay-for-EC-CUBE42
+cd UnivaPay-for-EC-CUBE42
 cp docker-compose.sample.yml docker-compose.yml
 docker compose up -d
-docker compose exec web sh -c "composer run-script compile && bin/console eccube:install -n"
-docker compose exec web sh -c "bin/console eccube:plugin:install --code=UnivaPay && bin/console eccube:plugin:enable --code=UnivaPay"
+code . # devcontainerで開かなかったらdevcontainerで開きなおしてください
+bin/console eccube:install -n
+bin/console eccube:composer:require univapay/php-sdk
+bin/console eccube:plugin:install --code=UnivaPay && bin/console eccube:plugin:enable --code=UnivaPay && bin/console cache:clear
+cd app/Plugin/UnivaPay # プラグインのディレクトリ
 ```
 
-#### データベース更新したとき
+<http://localhost:1080>
+
+### DB初期化
 
 ```sh
-docker compose exec web sh -c "bin/console eccube:install -n && bin/console eccube:plugin:install --code=UnivaPay && bin/console eccube:plugin:enable --code=UnivaPay"
+bin/console eccube:install -n && bin/console eccube:plugin:install --code=UnivaPay && bin/console eccube:plugin:enable --code=UnivaPay
 ```
 
-#### アップデート手順
+### 管理者向けアップデート手順
 
 1. composer.json内のversionを上げる
 2. masterにコミット後github内でバージョンタグの作成
