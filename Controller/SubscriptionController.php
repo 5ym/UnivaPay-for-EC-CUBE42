@@ -122,10 +122,11 @@ class SubscriptionController extends AbstractController
             $this->entityManager->flush();
             return new Response();
         }
-        if (!$charge)
+        // 課金が存在しない場合もしくは再課金待ちの場合
+        if (!$charge || $data->data->status === 'unpaid')
             return new Response();
-        // 再課金待ちもしくは初回課金の場合は何もしない
-        if ($data->data->status === 'unpaid' || $charge->id === $existOrder->getUnivapayChargeId())
+        // データ上まだ課金IDが存在しない場合もしくは初回課金の場合
+        if (is_null($existOrder->getUnivapayChargeId()) || $charge->id === $existOrder->getUnivapayChargeId())
             return new Response();
         // cloneで注文を複製してもidが変更できないため一から作成
         $newOrder = new Order;
