@@ -44,6 +44,17 @@ class SubscriptionController extends AbstractController
     private $orderHelper;
 
     /**
+     * @var OrderNoProcessor
+     */
+    private $orderNoProcessor;
+
+    /**
+     * @var AddPointProcessor
+     */
+    private $addPointProcessor;
+
+
+    /**
      * @var MailService
      */
     protected $mailService;
@@ -111,7 +122,7 @@ class SubscriptionController extends AbstractController
             $this->entityManager->flush();
             return new Response();
         }
-        if (is_null($charge))
+        if (!$charge)
             return new Response();
         // 再課金待ちもしくは初回課金の場合は何もしない
         if ($data->data->status === 'unpaid' || $charge->id === $existOrder->getUnivapayChargeId())
