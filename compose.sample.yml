@@ -39,4 +39,3 @@ services:
 
 volumes:
   db:
-  web:
