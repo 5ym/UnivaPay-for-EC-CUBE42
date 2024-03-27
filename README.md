@@ -14,10 +14,10 @@ vscode devcontainerを利用しています。
 ```sh
 git clone https://github.com/univapay/UnivaPay-for-EC-CUBE42.git
 cd UnivaPay-for-EC-CUBE42
-cp docker-compose.sample.yml docker-compose.yml
+cp compose.sample.yml compose.yml
 docker compose up -d
 code . # devcontainerで開かなかったらdevcontainerで開きなおしてください
-bin/console eccube:install -n
+bin/console eccube:install
 bin/console eccube:composer:require univapay/php-sdk
 bin/console eccube:plugin:install --code=UnivaPay && bin/console eccube:plugin:enable --code=UnivaPay && bin/console cache:clear
 cd app/Plugin/UnivaPay # プラグインのディレクトリ

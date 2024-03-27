@@ -1,2 +1,2 @@
 FROM ghcr.io/5ym/ec-cube:4.2
-RUN apk add git openssh-client
+RUN apt-get update && apt-get install -y git

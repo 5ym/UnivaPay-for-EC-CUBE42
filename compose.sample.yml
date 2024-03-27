@@ -19,14 +19,14 @@ services:
       - ECCUBE_ADMIN_ROUTE=admin
       - ECCUBE_TEMPLATE_CODE=default
       - ECCUBE_LOCALE=ja
-      - SHELL=/bin/ash
+      - SHELL=/bin/bash
     depends_on:
       - db
     dns:
       - 1.1.1.1
       - 1.0.0.1
     volumes:
-      - .:/var/lib/nginx/html/app/Plugin/UnivaPay
+      - .:/www/app/app/Plugin/UnivaPay
   db:
     image: postgres:10
     environment:
